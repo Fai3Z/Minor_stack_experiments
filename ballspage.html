@@ -1,0 +1,284 @@
+<!--A basic Html, CSS, javascript powered SPA that contains spheres creation with an interactive interface-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RGB Bouncing Balls</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <style>
+        body {
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+        .ball {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(1px);
+            box-shadow: 0 0 20px 5px rgba(255,255,255,0.3);
+            transition: all 0.1s ease-out;
+        }
+        .ball:hover {
+            transform: scale(1.1);
+            filter: blur(0.5px) brightness(1.2);
+        }
+        .controls {
+            backdrop-filter: blur(10px);
+            background-color: rgba(15, 23, 42, 0.7);
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #redSlider::-webkit-slider-thumb {
+            background: #ef4444;
+        }
+        #greenSlider::-webkit-slider-thumb {
+            background: #10b981;
+        }
+        #blueSlider::-webkit-slider-thumb {
+            background: #3b82f6;
+        }
+        .trail {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-full relative">
+    <div class="controls fixed bottom-0 left-0 right-0 p-6 z-10 border-t border-gray-700">
+        <div class="max-w-2xl mx-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-white text-xl font-bold">RGB Bouncer</h2>
+                <div class="flex space-x-2">
+                    <button id="addBall" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded">
+                        <i class="fas fa-plus"></i> Add Ball
+                    </button>
+                    <button id="reset" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded">
+                        <i class="fas fa-sync-alt"></i> Reset
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label for="redSlider" class="block text-red-400 mb-1">Red</label>
+                    <input type="range" id="redSlider" min="0" max="255" value="239" class="w-full slider">
+                </div>
+                <div>
+                    <label for="greenSlider" class="block text-green-400 mb-1">Green</label>
+                    <input type="range" id="greenSlider" min="0" max="255" value="68" class="w-full slider">
+                </div>
+                <div>
+                    <label for="blueSlider" class="block text-blue-400 mb-1">Blue</label>
+                    <input type="range" id="blueSlider" min="0" max="255" value="68" class="w-full slider">
+                </div>
+            </div>
+            
+            <div class="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                    <label for="sizeSlider" class="block text-gray-300 mb-1">Size</label>
+                    <input type="range" id="sizeSlider" min="20" max="150" value="60" class="w-full slider">
+                </div>
+                <div>
+                    <label for="speedSlider" class="block text-gray-300 mb-1">Speed</label>
+                    <input type="range" id="speedSlider" min="1" max="20" value="5" class="w-full slider">
+                </div>
+            </div>
+            
+            <div class="mt-4 flex items-center">
+                <input type="checkbox" id="trails" class="mr-2" checked>
+                <label for="trails" class="text-gray-300">Trails</label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const balls = [];
+            const trailsEnabled = true;
+            let trailCount = 0;
+            const maxTrails = 20;
+            
+            // Get DOM elements
+            const redSlider = document.getElementById('redSlider');
+            const greenSlider = document.getElementById('greenSlider');
+            const blueSlider = document.getElementById('blueSlider');
+            const sizeSlider = document.getElementById('sizeSlider');
+            const speedSlider = document.getElementById('speedSlider');
+            const trailsCheckbox = document.getElementById('trails');
+            const addBallBtn = document.getElementById('addBall');
+            const resetBtn = document.getElementById('reset');
+            
+            // Ball class
+            class Ball {
+                constructor() {
+                    this.size = parseInt(sizeSlider.value);
+                    this.x = Math.random() * (window.innerWidth - this.size);
+                    this.y = Math.random() * (window.innerHeight - this.size);
+                    this.dx = (Math.random() - 0.5) * parseInt(speedSlider.value);
+                    this.dy = (Math.random() - 0.5) * parseInt(speedSlider.value);
+                    this.color = `rgb(${redSlider.value}, ${greenSlider.value}, ${blueSlider.value})`;
+                    this.element = document.createElement('div');
+                    this.element.className = 'ball';
+                    this.updateStyle();
+                    document.body.appendChild(this.element);
+                }
+                
+                updateStyle() {
+                    this.element.style.width = `${this.size}px`;
+                    this.element.style.height = `${this.size}px`;
+                    this.element.style.backgroundColor = this.color;
+                    this.element.style.left = `${this.x}px`;
+                    this.element.style.top = `${this.y}px`;
+                }
+                
+                move() {
+                    // Check for wall collisions
+                    if (this.x + this.size > window.innerWidth || this.x < 0) {
+                        this.dx = -this.dx;
+                    }
+                    if (this.y + this.size > window.innerHeight || this.y < 0) {
+                        this.dy = -this.dy;
+                    }
+                    
+                    // Update position
+                    this.x += this.dx;
+                    this.y += this.dy;
+                    
+                    // Update element position
+                    this.element.style.left = `${this.x}px`;
+                    this.element.style.top = `${this.y}px`;
+                    
+                    // Add trail if enabled
+                    if (trailsCheckbox.checked) {
+                        this.addTrail();
+                    }
+                }
+                
+                addTrail() {
+                    if (trailCount >= maxTrails) return;
+                    
+                    const trail = document.createElement('div');
+                    trail.className = 'trail';
+                    trail.style.width = `${this.size}px`;
+                    trail.style.height = `${this.size}px`;
+                    trail.style.backgroundColor = this.color;
+                    trail.style.left = `${this.x}px`;
+                    trail.style.top = `${this.y}px`;
+                    document.body.appendChild(trail);
+                    
+                    trailCount++;
+                    
+                    // Fade out and remove trail
+                    setTimeout(() => {
+                        trail.style.transition = 'opacity 1s';
+                        trail.style.opacity = '0';
+                        setTimeout(() => {
+                            document.body.removeChild(trail);
+                            trailCount--;
+                        }, 1000);
+                    }, 100);
+                }
+                
+                remove() {
+                    document.body.removeChild(this.element);
+                }
+                
+                updateColor() {
+                    this.color = `rgb(${redSlider.value}, ${greenSlider.value}, ${blueSlider.value})`;
+                    this.element.style.backgroundColor = this.color;
+                }
+                
+                updateSize() {
+                    this.size = parseInt(sizeSlider.value);
+                    this.updateStyle();
+                }
+                
+                updateSpeed() {
+                    const speed = parseInt(speedSlider.value);
+                    // Maintain direction but adjust magnitude
+                    const currentSpeed = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
+                    if (currentSpeed > 0) {
+                        const ratio = speed / currentSpeed;
+                        this.dx *= ratio;
+                        this.dy *= ratio;
+                    }
+                }
+            }
+            
+            // Create initial balls
+            for (let i = 0; i < 3; i++) {
+                balls.push(new Ball());
+            }
+            
+            // Animation loop
+            function animate() {
+                balls.forEach(ball => ball.move());
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+            
+            // Event listeners for controls
+            redSlider.addEventListener('input', () => {
+                balls.forEach(ball => ball.updateColor());
+            });
+            
+            greenSlider.addEventListener('input', () => {
+                balls.forEach(ball => ball.updateColor());
+            });
+            
+            blueSlider.addEventListener('input', () => {
+                balls.forEach(ball => ball.updateColor());
+            });
+            
+            sizeSlider.addEventListener('input', () => {
+                balls.forEach(ball => ball.updateSize());
+            });
+            
+            speedSlider.addEventListener('input', () => {
+                balls.forEach(ball => ball.updateSpeed());
+            });
+            
+            addBallBtn.addEventListener('click', () => {
+                if (balls.length < 10) {
+                    balls.push(new Ball());
+                } else {
+                    alert('Maximum of 10 balls reached!');
+                }
+            });
+            
+            resetBtn.addEventListener('click', () => {
+                // Remove all balls
+                balls.forEach(ball => ball.remove());
+                balls.length = 0;
+                
+                // Create 3 new balls
+                for (let i = 0; i < 3; i++) {
+                    balls.push(new Ball());
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                balls.forEach(ball => {
+                    // Keep balls within bounds
+                    if (ball.x + ball.size > window.innerWidth) {
+                        ball.x = window.innerWidth - ball.size;
+                    }
+                    if (ball.y + ball.size > window.innerHeight) {
+                        ball.y = window.innerHeight - ball.size;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
